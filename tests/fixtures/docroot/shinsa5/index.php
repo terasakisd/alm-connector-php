@@ -13,7 +13,14 @@
 <p class="best3__first-catch">迷ったらココ！</p>
 <div class="best3__first-head"><span class="best3__first-head-name">プロミス</span></div>
 <div class="best3__first-box"><a href="https://rank-guide.com/ad/promise.html?shinsa5_re_bn" target="_blank" rel="nofollow noopener" class="best3__first-bnr"><img src="./assets/img/promise_bnr.png" alt="プロミス"></a></div>
-<ul class="best3__first-check-list"><li class="best3__first-check-list-item">最短3分</li></ul>
+<div class="best3__first-check">
+<p class="best3__first-check-ttl">CHECK</p>
+<ul class="best3__first-check-list">
+<li class="best3__first-check-list-item"><span class="red">最短3分</span>審査が可能</li>
+<li class="best3__first-check-list-item">スマホ完結で<span class="red">郵便物なし</span></li>
+<li class="best3__first-check-list-item">初回借入の翌日から<span class="red">30日間無利息</span></li>
+</ul>
+</div>
 </div>
 <div class="best3__first" id="pick-lake">
 <p class="best3__first-catch">迷ったらココ！</p>
@@ -85,18 +92,31 @@
 <div class="ranking__box-head"><a href="https://rank-guide.com/ad/promise.html?shinsa5_rank_txt" target="_blank" rel="nofollow noopener" class="ranking__box-head-name">プロミス</a></div>
 <p class="ranking__box-catch">初めてなら30日間無利息</p>
 <div class="ranking__box-wrap"><a href="https://rank-guide.com/ad/promise.html?shinsa5_rank_bn" target="_blank" rel="nofollow noopener" class="ranking__box-bnr"><img src="./assets/img/promise_bnr.png" alt="プロミス"></a></div>
+<ul class="ranking__box-list">
+<li class="ranking__box-list-item"><div class="ranking__box-list-item-head">審査時間</div><div class="ranking__box-list-item-content good">最短3分</div></li>
+<li class="ranking__box-list-item"><div class="ranking__box-list-item-head">無利息期間</div><div class="ranking__box-list-item-content good">30日間</div></li>
+<li class="ranking__box-list-item"><div class="ranking__box-list-item-head">実質年率</div><div class="ranking__box-list-item-content normal">4.5~17.8%</div></li>
+</ul>
 </div>
 <!-- 2位 -->
 <div class="ranking__box result-item" id="lake">
 <div class="ranking__box-head"><a href="https://rank-guide.com/ad/lake.html?shinsa5_rank_txt" target="_blank" rel="nofollow noopener" class="ranking__box-head-name">レイク</a></div>
 <p class="ranking__box-catch">選べる無利息</p>
 <div class="ranking__box-wrap"><a href="https://rank-guide.com/ad/lake.html?shinsa5_rank_bn" target="_blank" rel="nofollow noopener" class="ranking__box-bnr"><img src="./assets/img/lake_bnr.png" alt="レイク"></a></div>
+<ul class="ranking__box-list">
+<li class="ranking__box-list-item"><div class="ranking__box-list-item-head">実質年率</div><div class="ranking__box-list-item-content bad">4.5~18.0%</div></li>
+<li class="ranking__box-list-item"><div class="ranking__box-list-item-head">審査時間</div><div class="ranking__box-list-item-content normal">最短25分</div></li>
+<li class="ranking__box-list-item"><div class="ranking__box-list-item-head">無利息期間</div><div class="ranking__box-list-item-content good">365日</div></li>
+</ul>
 </div>
 <!-- 3位 -->
 <div class="ranking__box result-item result-item-mobit" id="mobit">
 <div class="ranking__box-head"><a href="https://rank-guide.com/ad/mobit.html?shinsa5_rank_txt" target="_blank" rel="nofollow noopener" class="ranking__box-head-name">SMBCモビット</a></div>
 <p class="ranking__box-catch">WEB完結で電話連絡なし</p>
 <div class="ranking__box-wrap"><a href="https://rank-guide.com/ad/mobit.html?shinsa5_rank_bn" target="_blank" rel="nofollow noopener" class="ranking__box-bnr"><img src="./assets/img/mobit_bnr.png" alt="SMBCモビット"></a></div>
+<ul class="ranking__box-list">
+<li class="ranking__box-list-item"><div class="ranking__box-list-item-head">在籍確認</div><div class="ranking__box-list-item-content good">電話連絡なし</div></li>
+</ul>
 </div>
 <p class="ranking__box-note">※ 順位は当サイト独自の基準です。<a href="https://rank-guide.com/ad/promise.html?shinsa5_note" target="_blank" rel="nofollow noopener">公式サイト</a></p>
 </div>

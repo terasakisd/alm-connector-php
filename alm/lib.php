@@ -13,7 +13,7 @@
  *   - ブランド: ユニット内の /ad(〜)/○○.html のファイル名（WP版の /lp/ と同じ考え方）
  */
 
-const ALM_PHP_VERSION = '1.0.1';
+const ALM_PHP_VERSION = '1.1.0';
 
 /** ブランド検出用（/ad/promise.html, /ad-column67/promise.html などに対応） */
 const ALM_BRAND_RE = '#/(?:ad|ad-[a-z0-9_\-]+)/([a-z0-9_\-]+)\.html#i';
@@ -30,6 +30,22 @@ function alm_config(): array {
         'docroot'     => $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__),
         'unit_blocks' => ['ranking__box', 'best3__list-item'],
         'pick_class'  => 'best3__first',
+        // ピックアップを1位ブランドの商標コンテンツから組み替えるときの部品（class名）
+        'pick_parts'  => [
+            'name'  => 'best3__first-head-name',   // ブランド名
+            'catch' => 'best3__first-catch',       // キャッチコピー
+            'bnr'   => 'best3__first-bnr',         // バナー（<a> の中身を差し替え）
+            'list'  => 'best3__first-check-list',  // CHECK 項目の <ul>
+            'check' => 'best3__first-check',       // CHECK 枠（項目を作れないときは丸ごと外す）
+        ],
+        'unit_parts'  => [
+            'name'         => 'ranking__box-head-name',
+            'catch'        => 'ranking__box-catch',
+            'bnr'          => 'ranking__box-bnr',
+            'item'         => 'ranking__box-list-item',
+            'item_head'    => 'ranking__box-list-item-head',
+            'item_content' => 'ranking__box-list-item-content',
+        ],
         'disabled_all'=> false, // 緊急停止: true で全LPの変換を止める（元の表示に戻る）
     ];
     return $cfg;
@@ -434,12 +450,16 @@ function alm_apply_column_tables(string $content, array $order, array $hidden): 
     return $content;
 }
 
-/** ピックアップ（迷ったらココ等）: 複数バリアントがあれば、表示順1位のブランドのものだけ残す */
-function alm_apply_pick(string $content, array $order, array $hidden): string {
+/**
+ * ピックアップ（迷ったらココ！等）を表示順1位のブランドに連動させる。
+ *  - LP に pick_class の要素（バリアント）がブランドごとに複数あれば、1位ブランドのものだけ残す
+ *  - バリアントが1つだけなら、その枠を 1位ブランドの商標コンテンツ（ranking__box）の内容で組み替える
+ *    （リンク先・ブランド名・キャッチ・バナー・CHECK項目）。1位ブランドの商標コンテンツが無ければ何もしない
+ */
+function alm_apply_pick(string $content, array $order, array $hidden, array $units = []): string {
     $cfg = alm_config();
     $pattern = '/<([a-z][a-z0-9]*)\b[^>]*\bclass\s*=\s*["\'][^"\']*' . alm_class_token_re([$cfg['pick_class']]) . '[^"\']*["\'][^>]*>/i';
     if (!preg_match_all($pattern, $content, $m, PREG_OFFSET_CAPTURE)) return $content;
-    if (count($m[0]) < 2) return $content; // バリアントが1つだけなら従来表示のまま
 
     $hiddenSet = [];
     foreach ($hidden as $h) { $h = strtolower(trim((string) $h)); if ($h !== '') $hiddenSet[$h] = true; }
@@ -458,9 +478,24 @@ function alm_apply_pick(string $content, array $order, array $hidden): string {
         $end   = alm_match_element_end($content, $tag, $start + strlen($m[0][$i][0]));
         if ($end === null) continue;
         $html = substr($content, $start, $end - $start);
-        $picks[] = ['start' => $start, 'end' => $end, 'brand' => alm_brand_of($html)];
+        $picks[] = ['start' => $start, 'end' => $end, 'html' => $html, 'brand' => alm_brand_of($html)];
     }
-    // 1位ブランドのバリアントが無ければ何もしない（安全側）
+    if (empty($picks)) return $content;
+
+    // バリアントが1つだけ → 1位ブランドの商標コンテンツで組み替える
+    if (count($picks) === 1) {
+        $p = $picks[0];
+        if ($p['brand'] === $top) return $content; // すでに1位ブランド
+        $unit = alm_unit_for_brand($units, $top);
+        if ($unit === null) return $content;       // 組み替え元が無い（安全側）
+        $nameCls = (string) (((array) $cfg['unit_parts'])['name'] ?? '');
+        if ($nameCls !== '' && alm_inner_of($unit['html'], $nameCls) === null) return $content; // ブランド名を取れない要素（行・帯）からは作らない
+        $new = alm_build_pick($p['html'], $unit['html'], $top);
+        if ($new === '' || $new === $p['html']) return $content;
+        return substr_replace($content, $new, $p['start'], $p['end'] - $p['start']);
+    }
+
+    // 複数バリアント → 1位ブランドのものだけ残す（無ければ何もしない）
     $hasTop = false;
     foreach ($picks as $p) { if ($p['brand'] === $top) { $hasTop = true; break; } }
     if (!$hasTop) return $content;
@@ -473,6 +508,147 @@ function alm_apply_pick(string $content, array $order, array $hidden): string {
     return $content;
 }
 
+/** ユニット一覧からブランドの商標コンテンツを返す（順位の元 = ranking__box を優先） */
+function alm_unit_for_brand(array $units, string $brand): ?array {
+    foreach ($units as $u) { if (!empty($u['is_source']) && $u['brand'] === $brand) return $u; }
+    foreach ($units as $u) { if ($u['brand'] === $brand) return $u; }
+    return null;
+}
+
+/** class を持つ最初の要素の位置（start / inner_start / inner_end / end）。無ければ null */
+function alm_element_by_class(string $html, string $class, int $offset = 0): ?array {
+    $re = '/<([a-z][a-z0-9]*)\b[^>]*\bclass\s*=\s*["\'][^"\']*' . alm_class_token_re([$class]) . '[^"\']*["\'][^>]*>/i';
+    if (!preg_match($re, $html, $m, PREG_OFFSET_CAPTURE, $offset)) return null;
+    $start = $m[0][1];
+    $tag   = strtolower($m[1][0]);
+    $innerStart = $start + strlen($m[0][0]);
+    $end = alm_match_element_end($html, $tag, $innerStart);
+    if ($end === null) return null;
+    $innerEnd = strrpos(substr($html, 0, $end), '<');
+    if ($innerEnd === false || $innerEnd < $innerStart) return null;
+    return ['tag' => $tag, 'start' => $start, 'inner_start' => $innerStart, 'inner_end' => $innerEnd, 'end' => $end];
+}
+
+/** class を持つ最初の要素の内側HTML。無ければ null */
+function alm_inner_of(string $html, string $class): ?string {
+    $e = alm_element_by_class($html, $class);
+    return $e === null ? null : substr($html, $e['inner_start'], $e['inner_end'] - $e['inner_start']);
+}
+
+/** class を持つ最初の要素の内側HTMLを差し替える（要素が無ければそのまま） */
+function alm_replace_inner(string $html, string $class, string $inner): string {
+    $e = alm_element_by_class($html, $class);
+    if ($e === null) return $html;
+    return substr_replace($html, $inner, $e['inner_start'], $e['inner_end'] - $e['inner_start']);
+}
+
+/** タグを除いた素のテキスト（空白を詰める。切り詰めない） */
+function alm_text(string $html): string {
+    return trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($html), ENT_QUOTES, 'UTF-8')));
+}
+
+/**
+ * ピックアップ枠（$pick）を、ブランド $top の商標コンテンツ（$unit）の内容で組み替える。
+ * 部品のクラス名は config の pick_parts / unit_parts。
+ */
+function alm_build_pick(string $pick, string $unit, string $top): string {
+    $cfg = alm_config();
+    $pp  = (array) $cfg['pick_parts'];
+    $up  = (array) $cfg['unit_parts'];
+    $old = alm_brand_of($pick);
+
+    // 旧ブランド名（最後にテキストとして残っている分を置き換えるために控える）
+    $oldName = '';
+    if (!empty($pp['name'])) { $v = alm_inner_of($pick, $pp['name']); if ($v !== null) $oldName = alm_text($v); }
+
+    // 1) リンク先: /ad/旧.html → /ad/新.html（計測用のクエリはそのまま）
+    if ($old !== '') {
+        $pick = preg_replace('#(/(?:ad|ad-[a-z0-9_\-]+)/)' . preg_quote($old, '#') . '(\.html)#i', '${1}' . $top . '$2', $pick);
+    }
+
+    // 2) ブランド名
+    $newName = '';
+    if (!empty($up['name'])) { $v = alm_inner_of($unit, $up['name']); if ($v !== null) $newName = alm_text($v); }
+    if ($newName !== '' && !empty($pp['name'])) $pick = alm_replace_inner($pick, $pp['name'], $newName);
+
+    // 3) キャッチコピー
+    if (!empty($up['catch']) && !empty($pp['catch'])) {
+        $v = alm_inner_of($unit, $up['catch']);
+        if ($v !== null && alm_text($v) !== '') $pick = alm_replace_inner($pick, $pp['catch'], trim($v));
+    }
+
+    // 4) バナー: 商標コンテンツのバナー（<picture>/<img>）をそのまま使う。無ければファイル名の 旧_bnr → 新_bnr だけ置換
+    $bnrDone = false;
+    if (!empty($up['bnr']) && !empty($pp['bnr'])) {
+        $v = alm_inner_of($unit, $up['bnr']);
+        if ($v !== null && preg_match('/<(?:img|picture)\b/i', $v)) { $pick = alm_replace_inner($pick, $pp['bnr'], trim($v)); $bnrDone = true; }
+    }
+    if (!$bnrDone && $old !== '') {
+        $pick = preg_replace('/\b' . preg_quote($old, '/') . '(_bnr\.)/i', $top . '$1', $pick);
+    }
+
+    // 5) CHECK 項目: 商標コンテンツの「項目名 / 値」から作る（good → normal → その他 の順）
+    if (!empty($pp['list'])) {
+        $list = alm_element_by_class($pick, $pp['list']);
+        if ($list !== null) {
+            $listInner = substr($pick, $list['inner_start'], $list['inner_end'] - $list['inner_start']);
+            // 既存の <li> の書き方（開始タグ・強調 span）をテンプレとして使う
+            $liOpen = '<li>';
+            if (preg_match('/<li\b[^>]*>/i', $listInner, $lm)) $liOpen = $lm[0];
+            $liCount = max(1, preg_match_all('/<li\b/i', $listInner));
+            $spanOpen = '';
+            if (preg_match('/<span\b[^>]*>/i', $listInner, $sm)) $spanOpen = $sm[0];
+
+            $items = alm_unit_spec_items($unit, $up);
+            usort($items, function ($a, $b) { return $a['rank'] <=> $b['rank']; });
+            $items = array_slice($items, 0, $liCount);
+
+            if (!empty($items)) {
+                $lis = [];
+                foreach ($items as $it) {
+                    $val = htmlspecialchars($it['content'], ENT_QUOTES, 'UTF-8');
+                    $val = $spanOpen !== '' ? $spanOpen . $val . '</span>' : $val;
+                    $lis[] = $liOpen . htmlspecialchars($it['head'], ENT_QUOTES, 'UTF-8') . 'は' . $val . '</li>';
+                }
+                $pick = substr_replace($pick, "\n" . implode("\n", $lis) . "\n", $list['inner_start'], $list['inner_end'] - $list['inner_start']);
+            } elseif (!empty($pp['check']) && ($chk = alm_element_by_class($pick, $pp['check'])) !== null) {
+                $pick = substr_replace($pick, '', $chk['start'], $chk['end'] - $chk['start']); // 項目を作れない → CHECK 枠ごと外す
+            } else {
+                $pick = substr_replace($pick, '', $list['inner_start'], $list['inner_end'] - $list['inner_start']);
+            }
+        }
+    }
+
+    // 6) テキストとして残っている旧ブランド名を新ブランド名に（alt など）
+    if ($oldName !== '' && $newName !== '' && $oldName !== $newName) {
+        $pick = str_replace($oldName, $newName, $pick);
+    }
+    return $pick;
+}
+
+/** 商標コンテンツのスペック表（項目名・値・評価クラス）を取り出す。rank: good=0, normal=1, その他=2 */
+function alm_unit_spec_items(string $unit, array $up): array {
+    $items = [];
+    if (empty($up['item'])) return $items;
+    $offset = 0;
+    while (($e = alm_element_by_class($unit, $up['item'], $offset)) !== null) {
+        $offset = $e['end'];
+        $li = substr($unit, $e['start'], $e['end'] - $e['start']);
+        $head = !empty($up['item_head']) ? alm_inner_of($li, $up['item_head']) : null;
+        $cont = !empty($up['item_content']) ? alm_element_by_class($li, $up['item_content']) : null;
+        if ($head === null || $cont === null) continue;
+        $headText = alm_text($head);
+        $contHtml = substr($li, $cont['inner_start'], $cont['inner_end'] - $cont['inner_start']);
+        $contText = alm_text($contHtml);
+        if ($headText === '' || $contText === '') continue;
+        $open = substr($li, $cont['start'], $cont['inner_start'] - $cont['start']);
+        $rank = 2;
+        if (preg_match('/\bclass\s*=\s*["\'][^"\']*(?<![\w-])good(?![\w-])/i', $open)) $rank = 0;
+        elseif (preg_match('/\bclass\s*=\s*["\'][^"\']*(?<![\w-])normal(?![\w-])/i', $open)) $rank = 1;
+        $items[] = ['head' => $headText, 'content' => $contText, 'rank' => $rank];
+    }
+    return $items;
+}
 /** リンク停止: 停止ブランドの /ad/○○.html アンカーをコメントアウト（置換テキスト対応） */
 function alm_apply_disabled(string $content, array $campaigns): string {
     foreach ($campaigns as $c) {
@@ -518,7 +694,7 @@ function alm_transform(string $content, array $lpState): string {
             $units = alm_find_units($content);
             $content = alm_apply_order($content, $units, $order, $hidden);
             $content = alm_apply_column_tables($content, $order, $hidden);
-            $content = alm_apply_pick($content, $order, $hidden);
+            $content = alm_apply_pick($content, $order, $hidden, $units);
         }
         $content = alm_apply_disabled($content, $campaigns);
         // 安全策: 出力が空になったら変換を破棄

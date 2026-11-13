@@ -144,6 +144,50 @@ eq(substr_count($out, 'class="best3__first"'), 3, '1位ブランドのピック�
 eq(alm_transform($html, ['order' => [], 'hidden' => [], 'campaigns' => []]), $html, '設定なしなら完全に同一');
 
 /* ====================================================================== */
+section('ピックアップの組み替え（バリアントが1つだけのLP）');
+/* ====================================================================== */
+
+// 見本LPから lake / mobit のバリアントを外し、実LPと同じ「プロミスのピックアップ1つだけ」の状態を作る
+$single = preg_replace('/<div class="best3__first" id="pick-(lake|mobit)">.*?<\/ul>\n<\/div>\n/s', '', $html);
+eq(substr_count($single, 'best3__first-check-list-item'), 3, '前提: CHECK項目は3つ');
+eq(substr_count($single, 'class="best3__first"'), 1, '前提: ピックアップは1つ（promise）');
+$pickOf = function (string $out): string {
+    return preg_match('/<div class="best3__first"[^>]*>.*?<\/ul>\n<\/div>\n<\/div>/s', $out, $pm) ? $pm[0] : '';
+};
+
+$out = alm_transform($single, ['order' => ['lake', 'mobit', 'promise'], 'hidden' => [], 'campaigns' => []]);
+$pick = $pickOf($out);
+ok($pick !== '', 'ピックアップ枠が残っている');
+eq(substr_count($out, 'class="best3__first"'), 1, 'ピックアップは1つのまま');
+eq(brands_in($pick), ['lake'], 'リンク先が1位ブランド（lake）に変わる');
+ok(strpos($pick, '/ad/lake.html?shinsa5_re_bn') !== false, '計測用クエリは元のまま');
+ok(strpos($pick, '<span class="best3__first-head-name">レイク</span>') !== false, 'ブランド名は商標コンテンツから');
+ok(strpos($pick, '<p class="best3__first-catch">選べる無利息</p>') !== false, 'キャッチは商標コンテンツから');
+ok(strpos($pick, 'lake_bnr.png') !== false && strpos($pick, 'promise_bnr.png') === false, 'バナーは商標コンテンツのもの');
+eq(ids($pick, '/<li class="best3__first-check-list-item">(.*?)<\/li>/'), [
+    '無利息期間は<span class="red">365日</span>',
+    '審査時間は<span class="red">最短25分</span>',
+    '実質年率は<span class="red">4.5~18.0%</span>',
+], 'CHECK項目は good → normal → その他 の順に組み立てる');
+ok(strpos($pick, 'プロミス') === false, '旧ブランド名のテキストが残らない');
+eq(box_ids($out), ['lake', 'mobit', 'promise'], '商標コンテンツ側はそのまま並べ替わる');
+
+$out = alm_transform($single, ['order' => ['mobit', 'lake', 'promise'], 'hidden' => [], 'campaigns' => []]);
+$pick = $pickOf($out);
+eq(ids($pick, '/<li class="best3__first-check-list-item">(.*?)<\/li>/'), ['在籍確認は<span class="red">電話連絡なし</span>'], '項目が少ないブランドはある分だけ');
+ok(strpos($pick, 'SMBCモビット') !== false, 'ブランド名 SMBCモビット');
+
+$out = alm_transform($single, ['order' => ['promise', 'lake', 'mobit'], 'hidden' => [], 'campaigns' => []]);
+eq($out, $single, '1位が元のブランドなら何も変えない');
+
+$out = alm_transform($single, ['order' => ['lake', 'promise'], 'hidden' => ['lake'], 'campaigns' => []]);
+eq(brands_in($pickOf($out)), ['promise'], 'hidden のブランドは1位にならない');
+
+$noUnit = preg_replace('/<section class="ranking">.*?<\/section>/s', '', $single);
+$out = alm_transform($noUnit, ['order' => ['lake', 'promise'], 'hidden' => [], 'campaigns' => []]);
+eq(brands_in($pickOf($out)), ['promise'], '1位ブランドの商標コンテンツが無ければ触らない');
+
+/* ====================================================================== */
 section('記事から外す（hidden）');
 /* ====================================================================== */
 
