@@ -188,6 +188,45 @@ $out = alm_transform($noUnit, ['order' => ['lake', 'promise'], 'hidden' => [], '
 eq(brands_in($pickOf($out)), ['promise'], '1位ブランドの商標コンテンツが無ければ触らない');
 
 /* ====================================================================== */
+section('再掲の「迷ったらココ！」（lead__content）');
+/* ====================================================================== */
+
+$leadOf = function (string $out, int $nth = 0): string {
+    preg_match_all('/<div class="lead__content">.*?<\/div>\n<\/div>\n<a href="[^"]*" target="_blank" rel="nofollow noopener" class="btn btn--arrow">[^<]*<\/a>\n<\/div>/s', $out, $pm);
+    return $pm[0][$nth] ?? '';
+};
+eq(brands_in($leadOf($html)), ['promise', 'promise'], '前提: 再掲ブロックは promise のみ');
+
+$out  = alm_transform($html, ['order' => ['lake', 'mobit', 'promise'], 'hidden' => [], 'campaigns' => []]);
+$lead = $leadOf($out);
+ok($lead !== '', '再掲ブロックが残っている');
+eq(brands_in($lead), ['lake', 'lake'], 'バナーとボタンのリンク先が lake に');
+ok(strpos($lead, '/ad/lake.html?shinsa5_recap_bn') !== false && strpos($lead, '/ad/lake.html?shinsa5_recap_btn') !== false, '計測用クエリ（recap）はそのまま');
+ok(strpos($lead, '<span class="lead__catch-name">レイク</span>') !== false, 'キャッチ内のブランド名要素は残して レイク に');
+ok(preg_match('/<p class="lead__catch">\n選べる無利息<br>\n<span class="lead__catch-name">レイク<\/span>\n<\/p>/', $lead) === 1, 'キャッチ文だけ差し替わり <br> と名前は維持');
+ok(strpos($lead, 'lake_bnr.png') !== false, 'バナーは lake');
+eq(ids($lead, '/<li class="lead__box-list-item">(.*?)<\/li>/'), ['無利息期間は365日', '審査時間は最短25分', '実質年率は4.5~18.0%'], '項目は強調タグ無し（emphasis が空）で3つ');
+ok(strpos($lead, 'notes') === false, '元の注記（※）は残らない');
+ok(strpos($lead, 'プロミス') === false, '旧ブランド名が残らない');
+ok(strpos($lead, '詳細を見る') !== false, 'ボタン文言はそのまま');
+ok(strpos($lead, 'lead__box') !== false, '項目枠は残る');
+
+// 同じブランドの再掲が2か所あるLP（top / sokujitsu 等）→ 両方組み替わる
+$two = str_replace('<!-- 列型の比較テーブル', $leadOf($html) . "\n\n<!-- 列型の比較テーブル", $html);
+eq(substr_count($two, 'class="lead__content"'), 2, '前提: 再掲ブロック2つ（どちらも promise）');
+$out = alm_transform($two, ['order' => ['mobit', 'lake', 'promise'], 'hidden' => [], 'campaigns' => []]);
+eq([brands_in($leadOf($out, 0)), brands_in($leadOf($out, 1))], [['mobit', 'mobit'], ['mobit', 'mobit']], '2か所とも mobit に');
+eq(substr_count($out, '<span class="lead__catch-name">SMBCモビット</span>'), 2, '2か所ともブランド名 SMBCモビット');
+
+$out = alm_transform($html, ['order' => ['promise', 'lake'], 'hidden' => [], 'campaigns' => []]);
+eq($leadOf($out), $leadOf($html), '1位が promise なら再掲ブロックは無変更');
+
+// 旧設定キー（pick_class）の互換
+$cfgTest = alm_config();
+eq($cfgTest['pick_blocks'][0]['class'] ?? null, 'best3__first', '既定の1つ目は best3__first');
+eq($cfgTest['pick_blocks'][1]['class'] ?? null, 'lead__content', '既定の2つ目は lead__content');
+
+/* ====================================================================== */
 section('記事から外す（hidden）');
 /* ====================================================================== */
 

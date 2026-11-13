@@ -43,6 +43,27 @@
 </ul>
 </section>
 
+<!-- 再掲の「迷ったらココ！」（lead__content）: ブランド1つ分しか無い型 -->
+<div class="lead">
+<div class="lead__content">
+<p class="lead__catch">
+最短3分ですぐに審査結果がわかる！<br>
+<span class="lead__catch-name">プロミス</span>
+</p>
+<div class="lead__content-wrap">
+<a href="https://rank-guide.com/ad/promise.html?shinsa5_recap_bn" target="_blank" rel="nofollow noopener" class="lead__bnr"><img src="./assets/img/promise_bnr.png" alt="プロミス"></a>
+<div class="lead__box">
+<ul class="lead__box-list">
+<li class="lead__box-list-item">最短3分審査<span class="notes">※2</span>が可能</li>
+<li class="lead__box-list-item">スマホ完結で原則電話連絡・郵便物なし</li>
+<li class="lead__box-list-item">初回借入の翌日から30日間無利息</li>
+</ul>
+</div>
+</div>
+<a href="https://rank-guide.com/ad/promise.html?shinsa5_recap_btn" target="_blank" rel="nofollow noopener" class="btn btn--arrow">詳細を見る</a>
+</div>
+</div>
+
 <!-- 列型の比較テーブル（thead の td にブランド） -->
 <section class="best3Table">
 <table class="best3Table__table table">

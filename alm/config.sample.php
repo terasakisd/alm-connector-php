@@ -12,10 +12,13 @@ return [
     // 以下は通常は変更不要
     // 'docroot'      => '/var/www/html',           // ドキュメントルート（自動検出が外れる場合のみ）
     // 'unit_blocks'  => ['ranking__box', 'best3__list-item'],  // 並べ替え対象ブロックのclass
-    // 'pick_class'   => 'best3__first',            // ピックアップ（1位連動）ブロックのclass
-    // ピックアップを1位ブランドの商標コンテンツから組み替えるときの部品class（LPテンプレが違う場合だけ変更）
-    // 'pick_parts'   => ['name' => 'best3__first-head-name', 'catch' => 'best3__first-catch', 'bnr' => 'best3__first-bnr',
-    //                    'list' => 'best3__first-check-list', 'check' => 'best3__first-check'],
+    // ピックアップ（迷ったらココ！）の1位連動ブロック。LPテンプレが違う場合だけ変更（既定: best3__first と lead__content）
+    // 'pick_blocks'  => [
+    //     ['class' => 'best3__first', 'parts' => ['name' => 'best3__first-head-name', 'catch' => 'best3__first-catch', 'bnr' => 'best3__first-bnr',
+    //                                            'list' => 'best3__first-check-list', 'check' => 'best3__first-check', 'emphasis' => '<span class="red">']],
+    //     ['class' => 'lead__content', 'parts' => ['name' => 'lead__catch-name', 'catch' => 'lead__catch', 'bnr' => 'lead__bnr',
+    //                                             'list' => 'lead__box-list', 'check' => 'lead__box', 'emphasis' => '']],
+    // ],
     // 'unit_parts'   => ['name' => 'ranking__box-head-name', 'catch' => 'ranking__box-catch', 'bnr' => 'ranking__box-bnr',
     //                    'item' => 'ranking__box-list-item', 'item_head' => 'ranking__box-list-item-head', 'item_content' => 'ranking__box-list-item-content'],
     // 'disabled_all' => false,                     // true で全LPの変換を一時停止（元の表示に戻す）
