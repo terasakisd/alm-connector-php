@@ -13,7 +13,7 @@
  *   - ブランド: ユニット内の /ad(〜)/○○.html のファイル名（WP版の /lp/ と同じ考え方）
  */
 
-const ALM_PHP_VERSION = '1.0.0';
+const ALM_PHP_VERSION = '1.0.1';
 
 /** ブランド検出用（/ad/promise.html, /ad-column67/promise.html などに対応） */
 const ALM_BRAND_RE = '#/(?:ad|ad-[a-z0-9_\-]+)/([a-z0-9_\-]+)\.html#i';
@@ -94,6 +94,9 @@ function alm_resolve_lp_path(string $path): ?array {
     $root = realpath($docroot);
     if ($root === false || strncmp($file, $root . DIRECTORY_SEPARATOR, strlen($root) + 1) !== 0) return null;
     if (!preg_match('/\.php$/i', $file)) return null;
+    // コネクタ自身（alm/ 配下）のファイルはLPとして扱わない
+    $self = realpath(__DIR__);
+    if ($self !== false && strncmp($file, $self . DIRECTORY_SEPARATOR, strlen($self) + 1) === 0) return null;
 
     $rel = str_replace('\\', '/', substr($file, strlen($root)));
     $key = str_replace('\\', '/', dirname($rel));
@@ -163,6 +166,16 @@ function alm_brand_of(string $html): string {
     return '';
 }
 
+/**
+ * class 属性の中で、指定クラス名が「1トークンとして」含まれることを見る正規表現片。
+ * \b だと ranking__box-head / best3__first-catch などの派生クラスにも一致してしまうため、
+ * 前後が英数字・_・- でないことを条件にする。
+ */
+function alm_class_token_re(array $classes): string {
+    $alt = implode('|', array_map(function ($c) { return preg_quote((string) $c, '/'); }, $classes));
+    return '(?<![\w-])(?:' . $alt . ')(?![\w-])';
+}
+
 /* ---------- 順位ユニットの検出 ---------- */
 
 /**
@@ -171,7 +184,6 @@ function alm_brand_of(string $html): string {
  */
 function alm_find_units(string $content): array {
     $cfg = alm_config();
-    $classAlt = implode('|', array_map(function ($c) { return preg_quote($c, '/'); }, $cfg['unit_blocks']));
 
     // 列型テーブルの範囲は行ユニット検出から除外する
     $colTables = alm_find_column_tables($content);
@@ -185,7 +197,7 @@ function alm_find_units(string $content): array {
     $units = [];
 
     // (1) class 指定ブロック or data-rank 持ち要素
-    $pattern = '/<([a-z][a-z0-9]*)\b(?=[^>]*(?:\bdata-rank\s*=\s*["\']|\bclass\s*=\s*["\'][^"\']*\b(?:' . $classAlt . ')\b))[^>]*>/i';
+    $pattern = '/<([a-z][a-z0-9]*)\b(?=[^>]*(?:\bdata-rank\s*=\s*["\']|\bclass\s*=\s*["\'][^"\']*' . alm_class_token_re($cfg['unit_blocks']) . '))[^>]*>/i';
     if (preg_match_all($pattern, $content, $m, PREG_OFFSET_CAPTURE)) {
         $n = count($m[0]);
         for ($i = 0; $i < $n; $i++) {
@@ -204,7 +216,7 @@ function alm_find_units(string $content): array {
             if (preg_match('/\bdata-rank\s*=\s*["\']([^"\']*)["\']/i', $full, $dm)) $dataRank = strtolower(trim($dm[1]));
 
             // 「順位の元」（管理画面に出す）= ランキング詳細ブロック or data-rank="topic_◯◯"
-            $isRankingBox = (bool) preg_match('/\bclass\s*=\s*["\'][^"\']*\branking__box\b/i', $full);
+            $isRankingBox = (bool) preg_match('/\bclass\s*=\s*["\'][^"\']*' . alm_class_token_re(['ranking__box']) . '/i', $full);
             if ($dataRank !== '') {
                 $isTopic = (strncmp($dataRank, 'topic_', 6) === 0);
                 $key = $isTopic ? substr($dataRank, 6) : $dataRank;
@@ -425,8 +437,7 @@ function alm_apply_column_tables(string $content, array $order, array $hidden): 
 /** ピックアップ（迷ったらココ等）: 複数バリアントがあれば、表示順1位のブランドのものだけ残す */
 function alm_apply_pick(string $content, array $order, array $hidden): string {
     $cfg = alm_config();
-    $cls = preg_quote($cfg['pick_class'], '/');
-    $pattern = '/<([a-z][a-z0-9]*)\b[^>]*\bclass\s*=\s*["\'][^"\']*\b' . $cls . '\b[^"\']*["\'][^>]*>/i';
+    $pattern = '/<([a-z][a-z0-9]*)\b[^>]*\bclass\s*=\s*["\'][^"\']*' . alm_class_token_re([$cfg['pick_class']]) . '[^"\']*["\'][^>]*>/i';
     if (!preg_match_all($pattern, $content, $m, PREG_OFFSET_CAPTURE)) return $content;
     if (count($m[0]) < 2) return $content; // バリアントが1つだけなら従来表示のまま
 

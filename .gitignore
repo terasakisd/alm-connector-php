@@ -1,3 +1,4 @@
 alm/config.php
 alm/data/*.php
+tests/.tmp/
 .DS_Store

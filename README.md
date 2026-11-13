@@ -51,6 +51,14 @@ WordPress プラグイン「ALM コネクタ」と同じ API（`/alm/v1/*`）と
 
 ## ローカルでの動作テスト
 
+自動テスト（LPの見本 `tests/fixtures/docroot/` を使い、解析・変換と API・配信をまとめて検証）:
+
+```bash
+sh tests/run.sh        # docker の php:8.2-cli で実行（ローカルに php があれば php tests/test.php）
+```
+
+手で叩いて確かめる場合:
+
 ```bash
 # docroot/ に alm/ とLP（index.php）を置いて:
 docker run --rm -p 8099:8099 -v $(pwd)/docroot:/app -w /app php:8.2-cli php -S 0.0.0.0:8099 -t /app
@@ -78,3 +86,8 @@ curl -X POST "http://localhost:8099/alm/api.php?rest_route=/alm/v1/ranking" \
 | `campaigns` | GET / POST | 詳細設定の取得／保存 |
 | `campaign/delete` | POST | 案件の削除 |
 | `scan-links` | GET | 記事内広告リンクの一覧 |
+
+## 変更履歴
+
+- **1.0.1** ピックアップ（`best3__first`）の判定が `best3__first-catch` などの派生クラスにも一致し、1位ブランドのバリアントだけ残す処理で内側の要素まで削除されていた不具合を修正。ユニット検出・`ranking__box` 判定も同じくクラス名の完全一致に変更。`alm/` 配下のファイルを LP として解決しないよう制限。自動テスト（`tests/`）を追加
+- **1.0.0** 初回公開
