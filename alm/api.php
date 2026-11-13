@@ -8,7 +8,7 @@
  * 認証: リクエストヘッダ X-ALM-Token が config.php の token と一致すること（HTTPS必須）。
  */
 
-require __DIR__ . '/lib.php';
+require_once __DIR__ . '/lib.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
