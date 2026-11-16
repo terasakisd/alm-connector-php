@@ -13,7 +13,7 @@
  *   - ブランド: ユニット内の /ad(〜)/○○.html のファイル名（WP版の /lp/ と同じ考え方）
  */
 
-const ALM_PHP_VERSION = '1.2.0';
+const ALM_PHP_VERSION = '1.3.0';
 
 /** ブランド検出用（/ad/promise.html, /ad-column67/promise.html などに対応） */
 const ALM_BRAND_RE = '#/(?:ad|ad-[a-z0-9_\-]+)/([a-z0-9_\-]+)\.html#i';

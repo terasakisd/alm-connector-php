@@ -13,6 +13,22 @@ require_once __DIR__ . '/lib.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
+/* ---------- CORS（順位管理ツールの「ブラウザ直接」接続用） ----------
+ * ブラウザから直接このAPIを叩く方式では、X-ALM-Token 付きリクエストの前にプリフライト（OPTIONS）が
+ * 飛んでくる。認証はトークンで行うので Origin は制限しない（Cookie は使わない）。 */
+$almOrigin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+if ($almOrigin !== '') {
+    header('Access-Control-Allow-Origin: ' . $almOrigin);
+    header('Vary: Origin');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, X-ALM-Token');
+    header('Access-Control-Max-Age: 600');
+}
+if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 function alm_json($data, int $status = 200): void {
     http_response_code($status);
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

@@ -328,6 +328,27 @@ eq([$st, $js['code'] ?? null], [404, 'alm_no_route'], '未知のルート → 40
 [$st, $body] = http('GET', "{$BASE}/alm/data/state.php");
 ok($st === 404 || trim($body) === '', '状態ファイルへ直接アクセスしても中身は出ない');
 
+// CORS（ツールの「ブラウザ直接」接続）：プリフライトは認証なしで 204、許可ヘッダに X-ALM-Token
+function http_headers(string $method, string $url, array $headers): array {
+    $ctx = ['http' => ['method' => $method, 'ignore_errors' => true, 'timeout' => 10, 'header' => implode("\r\n", $headers)]];
+    @file_get_contents($url, false, stream_context_create($ctx));
+    $out = ['status' => 0];
+    foreach ($http_response_header ?? [] as $line) {
+        if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) $out['status'] = (int) $m[1];
+        elseif (strpos($line, ':') !== false) { [$k, $v] = explode(':', $line, 2); $out[strtolower(trim($k))] = trim($v); }
+    }
+    return $out;
+}
+$apiUrl = "{$BASE}/alm/api.php?rest_route=/alm/v1/ranking&url=" . rawurlencode($LPURL);
+$h = http_headers('OPTIONS', $apiUrl, ['Origin: https://tool.example', 'Access-Control-Request-Method: GET', 'Access-Control-Request-Headers: x-alm-token']);
+eq($h['status'], 204, 'OPTIONS プリフライト → 204（トークン不要）');
+eq($h['access-control-allow-origin'] ?? null, 'https://tool.example', 'Access-Control-Allow-Origin は Origin をそのまま返す');
+ok(stripos($h['access-control-allow-headers'] ?? '', 'x-alm-token') !== false, 'Access-Control-Allow-Headers に X-ALM-Token');
+$h = http_headers('GET', $apiUrl, ['Origin: https://tool.example', 'X-ALM-Token: ' . $TOKEN]);
+eq([$h['status'], $h['access-control-allow-origin'] ?? null], [200, 'https://tool.example'], '本リクエストにも Allow-Origin が付く');
+$h = http_headers('GET', $apiUrl, ['X-ALM-Token: ' . $TOKEN]);
+ok(!isset($h['access-control-allow-origin']), 'Origin 無し（サーバ経由）なら CORS ヘッダは付けない');
+
 // GET ranking（初期）
 [$st, , $js] = api('GET', 'ranking', ['url' => $LPURL]);
 eq($st, 200, 'GET ranking → 200');
