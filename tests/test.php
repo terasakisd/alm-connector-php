@@ -381,6 +381,11 @@ eq(brands_in(thead_of($p)), ['lake', 'promise'], '配信: 列型テーブル');
 eq(ids($p, '/<div class="best3__first" id="pick-([^"]+)"/'), ['lake'], '配信: ピックアップ');
 eq(substr_count($p, 'best3__first-catch'), 1, '配信: ピックアップ内側は無事');
 eq(box_ids(page('/shinsa5/search-result.php')), ['lake', 'promise'], '配信: 診断結果ページも同じ順');
+$sr = page('/shinsa5/search-result.php');
+ok(preg_match('/<script data-alm-search-filters="1">.*?<\/script>\s*<script src="assets\/js\/script-search\.js">/s', $sr) === 1, '配信: 診断結果ページは script-search.js の直前に rank 置き換えスクリプトが入る');
+ok(strpos($sr, 'var o=["lake","promise","mobit"]') !== false || strpos($sr, 'var o=["lake","promise"]') !== false, '置き換えスクリプトに保存順が入る');
+eq(substr_count($sr, 'data-alm-search-filters'), 1, '置き換えスクリプトは1回だけ');
+ok(strpos(page('/shinsa5/index.php'), 'data-alm-search-filters') === false, 'script-search.js を読まないページには入らない');
 eq(box_ids(page('/plain/index.php')), ['promise', 'lake'], '配信: 他LPには影響しない');
 
 // GET article（案件はブランドから自動補完）

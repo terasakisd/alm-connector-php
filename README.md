@@ -18,6 +18,7 @@ WordPress プラグイン「ALM コネクタ」と同じ API（`/alm/v1/*`）と
     リンク先（計測クエリはそのまま）・ブランド名・キャッチ・バナー・CHECK項目（スペック表の good → normal の順、項目数は元と同じ）
   - ブランドごとのバリアントを複数用意してあるLP: 表示順1位のものだけを出す（手書きの内容を優先できる）
   - 1位がもともとのブランドなら何も変えない。1位ブランドの商標コンテンツが無ければ触らない
+- **診断結果ページ（`search-result.php`）の表示順も追従**。診断結果は `script-search.js` が `assets/data/search-filters.json` の `rank` で並べ直すため HTML の並べ替えだけでは効かない。配信時に `script-search.js` の直前へ小さな script を差し込み、その JSON の `rank` を保存順に置き換える（記事から外したブランドは `enabled=false`）。JSON も JS も書き換えない
 
 元のPHP/HTMLファイルは一切書き換えず、配信時の表示だけを変える。
 設定が無いLP・解析に失敗した場合は元の表示をそのまま出す。
@@ -92,6 +93,7 @@ curl -X POST "http://localhost:8099/alm/api.php?rest_route=/alm/v1/ranking" \
 
 ## 変更履歴
 
+- **1.4.0** 診断結果ページの表示順が JS（`search-filters.json` の `rank`）で決まるLPに対応。配信時に `rank` を保存順へ置き換えるスクリプトを差し込む
 - **1.3.0** 順位管理ツールの「ブラウザ直接」接続（ツールのサーバではなく操作している人のブラウザから API を叩く方式）に対応。`api.php` が CORS ヘッダを返し、プリフライト（OPTIONS）に 204 で応答する。Cloudflare 等がツールの配置先（Vercel）からのアクセスを弾くサイト向け
 - **1.2.0** ページ下部の再掲「迷ったらココ！」（`lead__content`）も1位連動の対象に。ピックアップの定義を `pick_blocks`（複数ブロック）に拡張し、同じブランドの再掲が複数あるLPは全部組み替える。キャッチの中にブランド名要素がある型（`lead__catch` + `lead__catch-name`）に対応。旧設定 `pick_class` / `pick_parts` も引き続き有効
 - **1.1.0** ピックアップ（`best3__first`）が1つしか無いLPでも、1位ブランドの商標コンテンツから枠を組み替えて1位連動するように（リンク先・ブランド名・キャッチ・バナー・CHECK項目）。部品のクラス名は `config.php` の `pick_parts` / `unit_parts` で変更可

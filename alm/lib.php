@@ -13,7 +13,7 @@
  *   - ブランド: ユニット内の /ad(〜)/○○.html のファイル名（WP版の /lp/ と同じ考え方）
  */
 
-const ALM_PHP_VERSION = '1.3.0';
+const ALM_PHP_VERSION = '1.4.0';
 
 /** ブランド検出用（/ad/promise.html, /ad-column67/promise.html などに対応） */
 const ALM_BRAND_RE = '#/(?:ad|ad-[a-z0-9_\-]+)/([a-z0-9_\-]+)\.html#i';
@@ -719,6 +719,46 @@ function alm_apply_disabled(string $content, array $campaigns): string {
 /* ---------- 状態→配信反映（render.php から使う） ---------- */
 
 /** LPキーの状態を取り、HTMLへ全変換を適用する */
+/* ---------- 診断結果ページ（search-result.php）の JS 並べ替えへの追従 ---------- */
+
+/**
+ * 診断結果ページでは script-search.js が assets/data/search-filters.json を fetch し、
+ * その rank 値で .result-item を並べ直す（DOM の順番は使われない）。そのため HTML を並べ替えても
+ * 表示順は JSON の rank のまま。ここでは script-search.js の読み込みの直前に小さな script を差し込み、
+ * fetch を横取りして rank を保存順（order）に置き換える。hidden のブランドは enabled=false にする。
+ * JSON ファイルも JS ファイルも書き換えない（配信時の出力だけ）。
+ */
+function alm_apply_search_filters(string $content, array $order, array $hidden): string {
+    if (!preg_match('/<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*script-search[^"\']*\.js[^"\']*["\'][^>]*>/i', $content, $m, PREG_OFFSET_CAPTURE)) {
+        return $content;
+    }
+    if (strpos($content, 'data-alm-search-filters') !== false) return $content; // 二重挿入防止
+
+    $norm = function (array $xs): array {
+        $out = [];
+        foreach ($xs as $x) { $x = strtolower(trim((string) $x)); if ($x !== '' && !in_array($x, $out, true)) $out[] = $x; }
+        return $out;
+    };
+    $o = json_encode($norm($order), JSON_UNESCAPED_SLASHES);
+    $h = json_encode($norm($hidden), JSON_UNESCAPED_SLASHES);
+    if ($o === false || $h === false) return $content;
+
+    $js = '<script data-alm-search-filters="1">(function(){var o=' . $o . ',h=' . $h . ';'
+        . 'if(!window.fetch)return;var f=window.fetch;'
+        . 'window.fetch=function(u){var s=typeof u==="string"?u:((u&&u.url)||"");var p=f.apply(this,arguments);'
+        . 'if(!/\/data\/search-filters\.json(\?|$)/.test(s))return p;'
+        . 'return p.then(function(r){if(!r.ok)return r;return r.clone().json().then(function(d){'
+        . 'if(!d||typeof d!=="object")return r;var n=o.length;'
+        . 'Object.keys(d).forEach(function(k){var v=d[k];if(!v||typeof v!=="object")return;var key=k.toLowerCase();'
+        . 'var i=o.indexOf(key);var r0=typeof v.rank==="number"?v.rank:999;v.rank=i>=0?i+1:n+1+r0;'
+        . 'if(h.indexOf(key)>=0)v.enabled=false;});'
+        . 'return new Response(JSON.stringify(d),{status:200,headers:{"Content-Type":"application/json"}});'
+        . '}).catch(function(){return r;});});};})();</script>' . "\n";
+
+    $pos = $m[0][1];
+    return substr($content, 0, $pos) . $js . substr($content, $pos);
+}
+
 function alm_transform(string $content, array $lpState): string {
     $order  = (array) ($lpState['order'] ?? []);
     $hidden = (array) ($lpState['hidden'] ?? []);
@@ -731,6 +771,7 @@ function alm_transform(string $content, array $lpState): string {
             $content = alm_apply_order($content, $units, $order, $hidden);
             $content = alm_apply_column_tables($content, $order, $hidden);
             $content = alm_apply_pick($content, $order, $hidden, $units);
+            $content = alm_apply_search_filters($content, $order, $hidden);
         }
         $content = alm_apply_disabled($content, $campaigns);
         // 安全策: 出力が空になったら変換を破棄

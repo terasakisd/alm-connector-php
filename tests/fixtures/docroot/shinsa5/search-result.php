@@ -16,5 +16,6 @@
 </div>
 </div>
 </section>
+<script src="assets/js/script-search.js"></script>
 </body>
 </html>
