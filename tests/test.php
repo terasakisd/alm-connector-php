@@ -139,9 +139,13 @@ eq(substr_count($out, 'best3__first-catch'), 1, '1位=promise でもピックア
 
 $out = alm_transform($html, ['order' => ['zzz'], 'hidden' => [], 'campaigns' => []]);
 eq(box_ids($out), ['promise', 'lake', 'mobit'], '未知のキーだけの order → 元の順');
-eq(substr_count($out, 'class="best3__first"'), 3, '1位ブランドのピックアップが無ければ全部残す（安全側）');
+eq(ids($out, '/<div class="best3__first" id="pick-([^"]+)"/'), ['promise'], '1位ブランドのピックアップが無ければ先頭の枠だけ残す（3つ並べて出さない）');
 
-eq(alm_transform($html, ['order' => [], 'hidden' => [], 'campaigns' => []]), $html, '設定なしなら完全に同一');
+$noset = alm_transform($html, ['order' => [], 'hidden' => [], 'campaigns' => []]);
+eq(ids($noset, '/<div class="best3__first" id="pick-([^"]+)"/'), ['promise'], '設定なし: 会社ごとの枠が複数ある LP は先頭の枠だけ');
+eq(box_ids($noset), ['promise', 'lake', 'mobit'], '設定なし: 並びは元のまま');
+$expect = preg_replace('/<div class="best3__first" id="pick-(lake|mobit)">.*?<\/ul>\n<\/div>\n/s', '', $html);
+eq(preg_replace('/\n{2,}/', "\n", $noset), preg_replace('/\n{2,}/', "\n", $expect), '設定なし: 余分な枠を消す以外は完全に同一（空行の差は無視）');
 
 /* ====================================================================== */
 section('ピックアップの組み替え（バリアントが1つだけのLP）');
@@ -247,8 +251,9 @@ eq(box_ids($out), ['lake', 'mobit'], 'order 無しでも hidden だけで除外�
 section('リンク停止（campaigns.disabled）');
 /* ====================================================================== */
 
-$promiseAnchors = preg_match_all('/<a\b[^>]*promise\.html/', $html);
-$lakeAnchors    = preg_match_all('/<a\b[^>]*lake\.html/', $html);
+$base = alm_transform($html, ['order' => [], 'hidden' => [], 'campaigns' => []]); // 設定なしの出力（余分なピックアップ枠は消えている）
+$promiseAnchors = preg_match_all('/<a\b[^>]*promise\.html/', $base);
+$lakeAnchors    = preg_match_all('/<a\b[^>]*lake\.html/', $base);
 $camps = [[
     'name' => 'プロミス', 'brand' => 'promise', 'disabled' => true,
     'values' => [['bt' => 'promise.html', 'replacement' => '<掲載終了>', 'parent' => false, 'parent_selectors' => []]],
@@ -261,7 +266,7 @@ ok(strpos($out, '&lt;掲載終了&gt;') !== false, '置換テキストは HTML �
 eq(box_ids($out), ['promise', 'lake', 'mobit'], 'リンク停止だけならブロックの並びは変わらない');
 
 $camps[0]['disabled'] = false;
-eq(alm_transform($html, ['order' => [], 'hidden' => [], 'campaigns' => $camps]), $html, 'disabled=false なら何もしない');
+eq(alm_transform($html, ['order' => [], 'hidden' => [], 'campaigns' => $camps]), $base, 'disabled=false なら何もしない');
 
 /* ====================================================================== */
 section('状態ファイル');
@@ -454,7 +459,9 @@ eq(box_ids(page('/shinsa5/index.php')), ['lake', 'promise'], '解除すると再
 // 全解除
 [$st] = api('POST', 'ranking', [], ['url' => $LPURL, 'order' => [], 'hidden' => []]);
 eq($st, 200, 'order/hidden を空で保存');
-eq(box_ids(page('/shinsa5/index.php')), ['promise', 'lake', 'mobit'], '設定を空にすると元の表示');
+eq(box_ids(page('/shinsa5/index.php')), ['promise', 'lake', 'mobit'], '設定を空にすると元の並び');
+eq(ids(page('/shinsa5/index.php'), '/<div class="best3__first" id="pick-([^"]+)"/'), ['promise'], '設定を空にしてもピックアップは先頭の枠だけ');
+eq(ids(page('/plain/index.php'), '/<div class="best3__first" id="pick-([^"]+)"/'), [], '設定の無い別 LP（枠1つ以下）はそのまま');
 
 proc_terminate($server);
 proc_close($server);

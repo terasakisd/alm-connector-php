@@ -13,7 +13,7 @@
  *   - ブランド: ユニット内の /ad(〜)/○○.html のファイル名（WP版の /lp/ と同じ考え方）
  */
 
-const ALM_PHP_VERSION = '1.4.0';
+const ALM_PHP_VERSION = '1.5.0';
 
 /** ブランド検出用（/ad/promise.html, /ad-column67/promise.html などに対応） */
 const ALM_BRAND_RE = '#/(?:ad|ad-[a-z0-9_\-]+)/([a-z0-9_\-]+)\.html#i';
@@ -479,7 +479,8 @@ function alm_apply_pick(string $content, array $order, array $hidden, array $uni
         $k = strtolower(trim((string) $k));
         if ($k !== '' && !isset($hiddenSet[$k])) { $top = $k; break; }
     }
-    if ($top === '') return $content;
+    // $top が空（順位未設定）でも、会社ごとの枠が複数並んでいる LP は先頭の枠だけ残す
+    // （枠が1つだけの LP は何も変えない）
 
     foreach ((array) $cfg['pick_blocks'] as $block) {
         $cls = (string) ($block['class'] ?? '');
@@ -512,7 +513,7 @@ function alm_apply_pick_block(string $content, string $cls, array $parts, string
 
     // ブランドが1種類 → 各枠を1位ブランドの商標コンテンツで組み替える
     if (count($brands) === 1) {
-        if ($brands[0] === $top) return $content; // すでに1位ブランド
+        if ($top === '' || $brands[0] === $top) return $content; // 順位未設定 or すでに1位ブランド
         $unit = alm_unit_for_brand($units, $top);
         if ($unit === null) return $content;      // 組み替え元が無い（安全側）
         $nameCls = (string) (((array) alm_config()['unit_parts'])['name'] ?? '');
@@ -525,8 +526,9 @@ function alm_apply_pick_block(string $content, string $cls, array $parts, string
         return $content;
     }
 
-    // 複数ブランドのバリアント → 1位ブランドのものだけ残す（無ければ何もしない）
-    if (!in_array($top, $brands, true)) return $content;
+    // 複数ブランドのバリアント → 1位ブランドのものだけ残す
+    // （1位ブランドの枠が無い・順位未設定なら、HTML 上で最初に書かれている枠を既定として残す）
+    if ($top === '' || !in_array($top, $brands, true)) $top = $picks[count($picks) - 1]['brand']; // 後ろ順なので末尾が先頭
     foreach ($picks as $p) {
         if ($p['brand'] === $top) continue;
         $content = substr_replace($content, '', $p['start'], $p['end'] - $p['start']);
@@ -772,6 +774,9 @@ function alm_transform(string $content, array $lpState): string {
             $content = alm_apply_column_tables($content, $order, $hidden);
             $content = alm_apply_pick($content, $order, $hidden, $units);
             $content = alm_apply_search_filters($content, $order, $hidden);
+        } else {
+            // 順位未設定でも、会社ごとのピックアップ枠が複数並ぶ LP は先頭の枠だけ表示する
+            $content = alm_apply_pick($content, [], [], []);
         }
         $content = alm_apply_disabled($content, $campaigns);
         // 安全策: 出力が空になったら変換を破棄

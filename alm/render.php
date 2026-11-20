@@ -25,14 +25,10 @@ require_once __DIR__ . '/lib.php';
         if (!$lp) return;
 
         $state = alm_state_load();
-        $lpState = $state[$lp['key']] ?? null;
-        if (!is_array($lpState)) return; // このLPの設定なし → 素通し
-
-        $hasWork = !empty($lpState['order']) || !empty($lpState['hidden']);
-        foreach ((array) ($lpState['campaigns'] ?? []) as $c) {
-            if (!empty($c['disabled'])) { $hasWork = true; break; }
-        }
-        if (!$hasWork) return;
+        $lpState = $state[$lp['key']] ?? [];
+        if (!is_array($lpState)) $lpState = [];
+        // 設定の無い LP でも通す：alm_transform は「会社ごとのピックアップ枠が複数並ぶ LP で
+        // 先頭の枠だけ残す」以外は何もしないので、通常の LP は元の表示のまま
 
         ob_start(function (string $buffer) use ($lpState): string {
             $out = alm_transform($buffer, $lpState);
